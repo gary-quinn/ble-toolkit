@@ -21,13 +21,12 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -51,6 +50,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.atruedev.bletoolkit.permission.PermissionResult
+import com.atruedev.bletoolkit.permission.rememberBlePermissionLauncher
 import com.atruedev.kmpble.adapter.BluetoothAdapterState
 import com.atruedev.kmpble.scanner.Advertisement
 import kotlin.time.Clock
@@ -64,6 +65,12 @@ fun ScannerScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
 
+    val requestPermission = rememberBlePermissionLauncher { result ->
+        if (result is PermissionResult.Granted) {
+            viewModel.onPermissionGranted()
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -74,7 +81,12 @@ fun ScannerScreen(
                         onModeSelected = viewModel::setSortMode,
                     )
                     IconButton(onClick = viewModel::toggleFilterBar) {
-                        Text(if (state.isFilterBarVisible) "▼" else "▶", style = MaterialTheme.typography.titleMedium)
+                        Text(
+                            "⊞",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = if (state.isFilterBarVisible) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
                     }
                     ScanToggleButton(
                         scanState = state.scanState,
@@ -109,8 +121,11 @@ fun ScannerScreen(
             }
 
             when {
+                state.adapterState == BluetoothAdapterState.Unavailable -> InitializingContent()
                 state.adapterState == BluetoothAdapterState.Off -> BluetoothOffContent()
-                state.adapterState == BluetoothAdapterState.Unauthorized -> PermissionDeniedContent()
+                state.adapterState == BluetoothAdapterState.Unauthorized -> PermissionDeniedContent(
+                    onRequestPermission = requestPermission,
+                )
                 state.adapterState == BluetoothAdapterState.Unsupported -> UnsupportedContent()
                 state.scanState is ScanState.Error -> ErrorContent(
                     message = (state.scanState as ScanState.Error).message,
@@ -412,6 +427,14 @@ private fun relativeTime(instant: kotlin.time.Instant): String {
 }
 
 @Composable
+private fun InitializingContent() {
+    CenteredMessage(
+        title = "Initializing...",
+        subtitle = "Checking Bluetooth adapter state.",
+    )
+}
+
+@Composable
 private fun BluetoothOffContent() {
     CenteredMessage(
         title = "Bluetooth is turned off",
@@ -420,11 +443,24 @@ private fun BluetoothOffContent() {
 }
 
 @Composable
-private fun PermissionDeniedContent() {
-    CenteredMessage(
-        title = "Bluetooth permission required",
-        subtitle = "Grant Bluetooth permission in app settings to scan for devices.",
-    )
+private fun PermissionDeniedContent(onRequestPermission: () -> Unit) {
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text("Bluetooth permission required", style = MaterialTheme.typography.bodyLarge)
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            "Grant Bluetooth permission to scan for devices.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(modifier = Modifier.height(24.dp))
+        Button(onClick = onRequestPermission) {
+            Text("Grant Permission")
+        }
+    }
 }
 
 @Composable

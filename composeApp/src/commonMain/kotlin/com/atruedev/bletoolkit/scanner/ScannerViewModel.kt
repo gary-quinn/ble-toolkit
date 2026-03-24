@@ -4,12 +4,14 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.atruedev.kmpble.adapter.BluetoothAdapter
 import com.atruedev.kmpble.adapter.BluetoothAdapterState
-import com.atruedev.kmpble.scanner.Advertisement
 import com.atruedev.kmpble.scanner.EmissionPolicy
 import com.atruedev.kmpble.scanner.Scanner
 import com.atruedev.bletoolkit.registry.BluetoothUuidNames
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -18,17 +20,21 @@ import kotlinx.coroutines.launch
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.seconds
 import kotlin.uuid.ExperimentalUuidApi
-import kotlin.uuid.Uuid
 
 @OptIn(ExperimentalUuidApi::class)
 class ScannerViewModel : ViewModel() {
 
-    private val adapter = BluetoothAdapter()
+    private val serialScope = CoroutineScope(
+        viewModelScope.coroutineContext + Dispatchers.Default.limitedParallelism(1) + SupervisorJob(),
+    )
+
+    private var adapter = BluetoothAdapter()
     private val _uiState = MutableStateFlow(ScannerUiState())
     val uiState: StateFlow<ScannerUiState> = _uiState.asStateFlow()
 
     private var scanJob: Job? = null
     private var scanner: Scanner? = null
+    private var adapterObserveJob: Job? = null
     private val discoveredDevices = mutableMapOf<String, DiscoveredDevice>()
 
     init {
@@ -36,7 +42,8 @@ class ScannerViewModel : ViewModel() {
     }
 
     private fun observeAdapterState() {
-        viewModelScope.launch {
+        adapterObserveJob?.cancel()
+        adapterObserveJob = serialScope.launch {
             adapter.state.collect { state ->
                 _uiState.update { it.copy(adapterState = state) }
                 if (state == BluetoothAdapterState.On && _uiState.value.scanState == ScanState.Idle) {
@@ -46,6 +53,14 @@ class ScannerViewModel : ViewModel() {
                     stopScan()
                 }
             }
+        }
+    }
+
+    fun onPermissionGranted() {
+        serialScope.launch {
+            adapter.close()
+            adapter = BluetoothAdapter()
+            observeAdapterState()
         }
     }
 
@@ -63,7 +78,7 @@ class ScannerViewModel : ViewModel() {
         }
         scanner = newScanner
 
-        scanJob = viewModelScope.launch {
+        scanJob = serialScope.launch {
             try {
                 newScanner.advertisements.collect { advertisement ->
                     processAdvertisement(advertisement)
@@ -91,7 +106,7 @@ class ScannerViewModel : ViewModel() {
         if (_uiState.value.scanState == ScanState.Scanning) stopScan() else startScan()
     }
 
-    private fun processAdvertisement(advertisement: Advertisement) {
+    private fun processAdvertisement(advertisement: com.atruedev.kmpble.scanner.Advertisement) {
         val id = advertisement.identifier.value
         val manufacturerName = advertisement.manufacturerData.keys.firstOrNull()?.let { companyId ->
             BluetoothUuidNames.companyName(companyId)
@@ -144,12 +159,12 @@ class ScannerViewModel : ViewModel() {
 
     fun updateFilters(newFilters: ScanFilters) {
         _uiState.update { it.copy(filters = newFilters) }
-        updateFilteredAndSortedList()
+        serialScope.launch { updateFilteredAndSortedList() }
     }
 
     fun setSortMode(mode: SortMode) {
         _uiState.update { it.copy(sortMode = mode) }
-        updateFilteredAndSortedList()
+        serialScope.launch { updateFilteredAndSortedList() }
     }
 
     fun toggleFilterBar() {
