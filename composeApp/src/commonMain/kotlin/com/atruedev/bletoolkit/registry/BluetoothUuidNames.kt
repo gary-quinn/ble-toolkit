@@ -10,6 +10,8 @@ object BluetoothUuidNames {
 
     fun characteristicName(uuid: Uuid): String? = characteristicNames[uuid.toShortForm()]
 
+    fun descriptorName(uuid: Uuid): String? = descriptorNames[uuid.toShortForm()]
+
     fun companyName(companyId: Int): String? = companyNames[companyId]
 
     private fun Uuid.toShortForm(): String {
@@ -111,6 +113,21 @@ object BluetoothUuidNames {
         "2a9e" to "Weight Scale Feature",
         "2aa1" to "Magnetic Flux Density 2D",
         "2aa2" to "Magnetic Flux Density 3D",
+    )
+
+    private val descriptorNames = mapOf(
+        "2900" to "Characteristic Extended Properties",
+        "2901" to "Characteristic User Description",
+        "2902" to "Client Characteristic Configuration",
+        "2903" to "Server Characteristic Configuration",
+        "2904" to "Characteristic Presentation Format",
+        "2905" to "Characteristic Aggregate Format",
+        "2906" to "Valid Range",
+        "2907" to "External Report Reference",
+        "2908" to "Report Reference",
+        "290b" to "Environmental Sensing Configuration",
+        "290c" to "Environmental Sensing Measurement",
+        "290d" to "Environmental Sensing Trigger Setting",
     )
 
     private val companyNames = mapOf(

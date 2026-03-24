@@ -41,7 +41,7 @@ data class DiscoveredDevice(
 
 @OptIn(ExperimentalUuidApi::class)
 data class ScannerUiState(
-    val adapterState: BluetoothAdapterState = BluetoothAdapterState.On,
+    val adapterState: BluetoothAdapterState = BluetoothAdapterState.Unavailable,
     val scanState: ScanState = ScanState.Idle,
     val advertisements: List<DiscoveredDevice> = emptyList(),
     val filters: ScanFilters = ScanFilters(),

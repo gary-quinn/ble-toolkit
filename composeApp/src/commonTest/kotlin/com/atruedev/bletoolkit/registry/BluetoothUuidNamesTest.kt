@@ -69,4 +69,22 @@ class BluetoothUuidNamesTest {
         val name = BluetoothUuidNames.companyName(0xFFFF)
         assertNull(name)
     }
+
+    @Test
+    fun cccdDescriptorNameResolved() {
+        val name = BluetoothUuidNames.descriptorName(uuidFrom("2902"))
+        assertEquals("Client Characteristic Configuration", name)
+    }
+
+    @Test
+    fun userDescriptionDescriptorNameResolved() {
+        val name = BluetoothUuidNames.descriptorName(uuidFrom("2901"))
+        assertEquals("Characteristic User Description", name)
+    }
+
+    @Test
+    fun unknownDescriptorReturnsNull() {
+        val name = BluetoothUuidNames.descriptorName(uuidFrom("ffff"))
+        assertNull(name)
+    }
 }

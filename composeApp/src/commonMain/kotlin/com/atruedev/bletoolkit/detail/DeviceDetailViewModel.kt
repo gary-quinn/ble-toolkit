@@ -14,6 +14,7 @@ import com.atruedev.kmpble.peripheral.toPeripheral
 import com.atruedev.bletoolkit.registry.BluetoothUuidNames
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -156,31 +157,29 @@ class DeviceDetailViewModel(advertisement: Advertisement) : ViewModel() {
         }
     }
 
-    private fun descriptorName(uuid: kotlin.uuid.Uuid): String {
-        val short = uuid.toString().replace("-", "").lowercase()
-        return when {
-            short.startsWith("00002902") -> "Client Characteristic Configuration"
-            short.startsWith("00002901") -> "Characteristic User Description"
-            short.startsWith("00002900") -> "Characteristic Extended Properties"
-            short.startsWith("00002903") -> "Server Characteristic Configuration"
-            short.startsWith("00002904") -> "Characteristic Presentation Format"
-            else -> uuid.toString().take(8)
-        }
-    }
+    private fun descriptorName(uuid: kotlin.uuid.Uuid): String =
+        BluetoothUuidNames.descriptorName(uuid) ?: uuid.toString().take(8)
 
     private fun startRssiPolling() {
         rssiJob?.cancel()
         rssiJob = viewModelScope.launch {
-            while (true) {
+            var consecutiveFailures = 0
+            while (currentCoroutineContext()[Job]!!.isActive) {
                 try {
                     val rssi = peripheral.readRssi()
                     _uiState.update { it.copy(rssi = rssi) }
+                    consecutiveFailures = 0
                 } catch (e: CancellationException) {
                     throw e
                 } catch (_: Exception) {
-                    // RSSI read failures are non-critical
+                    consecutiveFailures++
                 }
-                delay(2.seconds)
+                val backoff = if (consecutiveFailures > 0) {
+                    (2 * consecutiveFailures).coerceAtMost(10).seconds
+                } else {
+                    2.seconds
+                }
+                delay(backoff)
             }
         }
     }
@@ -353,10 +352,14 @@ class DeviceDetailViewModel(advertisement: Advertisement) : ViewModel() {
         _uiState.update { it.copy(error = null) }
     }
 
-    override fun onCleared() {
-        super.onCleared()
+    fun close() {
         stopAllNotifications()
         rssiJob?.cancel()
         peripheral.close()
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        close()
     }
 }

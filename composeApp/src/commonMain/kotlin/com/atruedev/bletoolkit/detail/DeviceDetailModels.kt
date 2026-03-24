@@ -72,12 +72,15 @@ data class CharacteristicUiModel(
 
     override fun hashCode(): Int {
         var result = uuid.hashCode()
+        result = 31 * result + displayName.hashCode()
+        result = 31 * result + properties.hashCode()
         result = 31 * result + isExpanded.hashCode()
         result = 31 * result + (lastReadValue?.contentHashCode() ?: 0)
         result = 31 * result + displayFormat.hashCode()
         result = 31 * result + isNotifying.hashCode()
         result = 31 * result + notificationValues.hashCode()
-        result = 31 * result + error.hashCode()
+        result = 31 * result + descriptors.hashCode()
+        result = 31 * result + (error?.hashCode() ?: 0)
         return result
     }
 }
