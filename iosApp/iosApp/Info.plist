@@ -4,5 +4,7 @@
 <dict>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>BLE Toolkit needs Bluetooth to scan for and connect to BLE devices.</string>
 </dict>
 </plist>
