@@ -11,7 +11,7 @@ sealed interface AdvertisingState {
 
 data class AdvertisingUiState(
     val state: AdvertisingState = AdvertisingState.Stopped,
-    val localName: String = "",
+    val localName: String = "BLE Toolkit",
     val connectable: Boolean = true,
     val mode: AdvertiseMode = AdvertiseMode.Balanced,
     val txPower: AdvertiseTxPower = AdvertiseTxPower.Medium,
