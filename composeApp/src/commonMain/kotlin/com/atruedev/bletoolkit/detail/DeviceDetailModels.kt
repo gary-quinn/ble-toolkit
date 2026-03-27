@@ -2,6 +2,7 @@ package com.atruedev.bletoolkit.detail
 
 import com.atruedev.bletoolkit.detail.bonding.ConnectionRecipeType
 import com.atruedev.bletoolkit.dfu.DfuState
+import com.atruedev.bletoolkit.profiles.ProfileUiState
 import com.atruedev.kmpble.bonding.BondState
 import com.atruedev.kmpble.connection.State
 import com.atruedev.kmpble.gatt.Characteristic
@@ -108,4 +109,5 @@ data class DeviceDetailUiState(
     val writeDialogTarget: CharacteristicUiModel? = null,
     val selectedRecipe: ConnectionRecipeType? = null,
     val dfuState: DfuState = DfuState.Idle,
+    val profileState: ProfileUiState = ProfileUiState(),
 )

@@ -41,6 +41,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.atruedev.bletoolkit.detail.bonding.BondingSection
 import com.atruedev.bletoolkit.dfu.DfuSection
+import com.atruedev.bletoolkit.profiles.ProfileSection
 import com.atruedev.kmpble.bonding.BondState
 import com.atruedev.kmpble.connection.State
 import kotlin.uuid.ExperimentalUuidApi
@@ -154,6 +155,15 @@ fun DeviceDetailScreen(
                         onStartDfu = viewModel::startDfu,
                         onCancelDfu = viewModel::cancelDfu,
                         onReset = viewModel::resetDfu,
+                    )
+
+                    ProfileSection(
+                        profileState = state.profileState,
+                        onStartHeartRate = viewModel::startHeartRate,
+                        onStopProfile = viewModel::stopProfile,
+                        onReadBattery = viewModel::readBattery,
+                        onStartBatteryNotifications = viewModel::startBatteryNotifications,
+                        onReadDeviceInfo = viewModel::readDeviceInfo,
                     )
 
                     ServiceList(

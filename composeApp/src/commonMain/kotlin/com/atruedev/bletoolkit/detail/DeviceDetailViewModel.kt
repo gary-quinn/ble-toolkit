@@ -6,6 +6,10 @@ import com.atruedev.bletoolkit.detail.bonding.BondingOperations
 import com.atruedev.bletoolkit.detail.bonding.ConnectionRecipeType
 import com.atruedev.bletoolkit.dfu.DfuOperations
 import com.atruedev.bletoolkit.filepicker.FilePickerResult
+import com.atruedev.bletoolkit.profiles.ProfileDetector
+import com.atruedev.bletoolkit.profiles.ProfileOperations
+import com.atruedev.bletoolkit.profiles.ProfileType
+import com.atruedev.bletoolkit.profiles.ProfileUiState
 import com.atruedev.kmpble.connection.ConnectionOptions
 import com.atruedev.kmpble.connection.ReconnectionStrategy
 import com.atruedev.kmpble.connection.State
@@ -42,6 +46,8 @@ class DeviceDetailViewModel(advertisement: Advertisement) : ViewModel() {
     private val charOps = CharacteristicOperations(peripheral, _uiState, viewModelScope)
     private val bondingOps = BondingOperations(peripheral, _uiState, viewModelScope)
     private val dfuOps = DfuOperations(peripheral, _uiState, viewModelScope)
+    private val _profileState = MutableStateFlow(ProfileUiState())
+    private val profileOps = ProfileOperations(peripheral, _profileState, viewModelScope)
     private var rssiJob: Job? = null
 
     init {
@@ -147,7 +153,9 @@ class DeviceDetailViewModel(advertisement: Advertisement) : ViewModel() {
                         characteristics = characteristics,
                     )
                 }
-                _uiState.update { it.copy(services = serviceModels) }
+                val detectedProfiles = ProfileDetector.detectProfiles(serviceModels)
+                _profileState.update { it.copy(detectedProfiles = detectedProfiles) }
+                _uiState.update { it.copy(services = serviceModels, profileState = _profileState.value) }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -217,12 +225,19 @@ class DeviceDetailViewModel(advertisement: Advertisement) : ViewModel() {
     fun cancelDfu() = dfuOps.cancelDfu()
     fun resetDfu() = dfuOps.resetDfu()
 
+    fun startHeartRate() = profileOps.startHeartRate()
+    fun stopProfile(type: ProfileType) = profileOps.stopProfile(type)
+    fun readBattery() = profileOps.readBattery()
+    fun startBatteryNotifications() = profileOps.startBatteryNotifications()
+    fun readDeviceInfo() = profileOps.readDeviceInfo()
+
     fun dismissError() {
         _uiState.update { it.copy(error = null) }
     }
 
     fun close() {
         charOps.stopAllNotifications()
+        profileOps.stopAll()
         rssiJob?.cancel()
         peripheral.close()
     }
