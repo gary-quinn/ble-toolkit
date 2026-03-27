@@ -4,6 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.atruedev.bletoolkit.detail.bonding.BondingOperations
 import com.atruedev.bletoolkit.detail.bonding.ConnectionRecipeType
+import com.atruedev.bletoolkit.dfu.DfuOperations
+import com.atruedev.bletoolkit.filepicker.FilePickerResult
 import com.atruedev.kmpble.connection.ConnectionOptions
 import com.atruedev.kmpble.connection.ReconnectionStrategy
 import com.atruedev.kmpble.connection.State
@@ -39,6 +41,7 @@ class DeviceDetailViewModel(advertisement: Advertisement) : ViewModel() {
 
     private val charOps = CharacteristicOperations(peripheral, _uiState, viewModelScope)
     private val bondingOps = BondingOperations(peripheral, _uiState, viewModelScope)
+    private val dfuOps = DfuOperations(peripheral, _uiState, viewModelScope)
     private var rssiJob: Job? = null
 
     init {
@@ -208,6 +211,11 @@ class DeviceDetailViewModel(advertisement: Advertisement) : ViewModel() {
     fun removeBond() = bondingOps.removeBond()
     fun selectRecipe(recipe: ConnectionRecipeType) = bondingOps.selectRecipe(recipe)
     fun connectWithRecipe(recipe: ConnectionRecipeType) = bondingOps.connectWithRecipe(recipe)
+
+    fun selectFirmware(result: FilePickerResult) = dfuOps.selectFirmware(result)
+    fun startDfu() = dfuOps.startDfu()
+    fun cancelDfu() = dfuOps.cancelDfu()
+    fun resetDfu() = dfuOps.resetDfu()
 
     fun dismissError() {
         _uiState.update { it.copy(error = null) }

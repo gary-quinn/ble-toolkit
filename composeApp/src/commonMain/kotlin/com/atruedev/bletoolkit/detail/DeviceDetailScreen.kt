@@ -40,6 +40,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.atruedev.bletoolkit.detail.bonding.BondingSection
+import com.atruedev.bletoolkit.dfu.DfuSection
 import com.atruedev.kmpble.bonding.BondState
 import com.atruedev.kmpble.connection.State
 import kotlin.uuid.ExperimentalUuidApi
@@ -145,6 +146,14 @@ fun DeviceDetailScreen(
                         onRemoveBond = viewModel::removeBond,
                         onSelectRecipe = viewModel::selectRecipe,
                         onConnectWithRecipe = viewModel::connectWithRecipe,
+                    )
+
+                    DfuSection(
+                        dfuState = state.dfuState,
+                        onFileSelected = viewModel::selectFirmware,
+                        onStartDfu = viewModel::startDfu,
+                        onCancelDfu = viewModel::cancelDfu,
+                        onReset = viewModel::resetDfu,
                     )
 
                     ServiceList(
