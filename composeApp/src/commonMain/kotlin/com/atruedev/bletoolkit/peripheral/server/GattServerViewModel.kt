@@ -2,6 +2,7 @@ package com.atruedev.bletoolkit.peripheral.server
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.atruedev.kmpble.BleData
 import com.atruedev.kmpble.server.GattServer
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -80,19 +81,20 @@ class GattServerViewModel : ViewModel() {
                 val configs = _uiState.value.services
                 val gattServer = GattServer {
                     configs.forEach { serviceConfig ->
-                        val serviceUuid = Uuid.parse(serviceConfig.uuid)
-                        service(serviceUuid) {
+                        service(Uuid.parse(serviceConfig.uuid)) {
                             serviceConfig.characteristics.forEach { charConfig ->
-                                val charUuid = Uuid.parse(charConfig.uuid)
-                                characteristic(charUuid) {
+                                characteristic(Uuid.parse(charConfig.uuid)) {
                                     properties {
-                                        if (CharProperty.READ in charConfig.properties) read = true
-                                        if (CharProperty.WRITE in charConfig.properties) write = true
-                                        if (CharProperty.NOTIFY in charConfig.properties) notify = true
+                                        read = CharProperty.READ in charConfig.properties
+                                        write = CharProperty.WRITE in charConfig.properties
+                                        notify = CharProperty.NOTIFY in charConfig.properties
                                     }
                                     permissions {
-                                        if (CharProperty.READ in charConfig.properties) read = true
-                                        if (CharProperty.WRITE in charConfig.properties) write = true
+                                        read = CharProperty.READ in charConfig.properties
+                                        write = CharProperty.WRITE in charConfig.properties
+                                    }
+                                    if (CharProperty.READ in charConfig.properties) {
+                                        onRead { _ -> BleData(byteArrayOf(0x00)) }
                                     }
                                 }
                             }
@@ -105,7 +107,8 @@ class GattServerViewModel : ViewModel() {
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                _uiState.update { it.copy(state = ServerState.Error(e.message ?: "Failed to start server")) }
+                val errorDetail = "${e::class.simpleName}: ${e.message}"
+                _uiState.update { it.copy(state = ServerState.Error(errorDetail), error = errorDetail) }
             }
         }
     }
@@ -113,7 +116,7 @@ class GattServerViewModel : ViewModel() {
     fun stopServer() {
         server?.close()
         server = null
-        _uiState.update { it.copy(state = ServerState.Stopped) }
+        _uiState.update { it.copy(state = ServerState.Stopped, error = null) }
     }
 
     private fun updateChar(

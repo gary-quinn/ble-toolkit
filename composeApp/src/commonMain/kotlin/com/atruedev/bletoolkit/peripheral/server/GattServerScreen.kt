@@ -37,9 +37,14 @@ internal fun GattServerScreen(viewModel: GattServerViewModel) {
             onStop = viewModel::stopServer,
         )
 
-        if (state.error != null) {
+        val errorMessage = when {
+            state.state is ServerState.Error -> (state.state as ServerState.Error).message
+            state.error != null -> state.error
+            else -> null
+        }
+        if (errorMessage != null) {
             Text(
-                state.error!!,
+                errorMessage,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.error,
                 modifier = Modifier.padding(horizontal = 8.dp),
