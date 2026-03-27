@@ -35,8 +35,13 @@ internal class ProfileOperations(
                 }
             } catch (e: CancellationException) {
                 throw e
-            } catch (_: Exception) {
-                _uiState.update { it.copy(activeSubscriptions = it.activeSubscriptions - ProfileType.HEART_RATE) }
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(
+                        activeSubscriptions = it.activeSubscriptions - ProfileType.HEART_RATE,
+                        error = "Heart rate failed: ${e.message}",
+                    )
+                }
             }
         }
     }
@@ -56,8 +61,8 @@ internal class ProfileOperations(
                 }
             } catch (e: CancellationException) {
                 throw e
-            } catch (_: Exception) {
-                // Battery read failed silently
+            } catch (e: Exception) {
+                _uiState.update { it.copy(error = "Battery read failed: ${e.message}") }
             }
         }
     }
@@ -73,8 +78,13 @@ internal class ProfileOperations(
                 }
             } catch (e: CancellationException) {
                 throw e
-            } catch (_: Exception) {
-                _uiState.update { it.copy(activeSubscriptions = it.activeSubscriptions - ProfileType.BATTERY) }
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(
+                        activeSubscriptions = it.activeSubscriptions - ProfileType.BATTERY,
+                        error = "Battery notifications failed: ${e.message}",
+                    )
+                }
             }
         }
     }
@@ -94,8 +104,8 @@ internal class ProfileOperations(
                 _uiState.update { it.copy(readings = it.readings + (ProfileType.DEVICE_INFO to data)) }
             } catch (e: CancellationException) {
                 throw e
-            } catch (_: Exception) {
-                // Device info read failed silently
+            } catch (e: Exception) {
+                _uiState.update { it.copy(error = "Device info read failed: ${e.message}") }
             }
         }
     }

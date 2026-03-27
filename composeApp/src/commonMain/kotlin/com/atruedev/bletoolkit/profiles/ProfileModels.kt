@@ -41,4 +41,5 @@ data class ProfileUiState(
     val detectedProfiles: List<DetectedProfile> = emptyList(),
     val readings: Map<ProfileType, ProfileData> = emptyMap(),
     val activeSubscriptions: Set<ProfileType> = emptySet(),
+    val error: String? = null,
 )
