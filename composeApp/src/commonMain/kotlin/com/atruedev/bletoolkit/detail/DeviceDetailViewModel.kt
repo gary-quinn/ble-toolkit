@@ -6,6 +6,7 @@ import com.atruedev.bletoolkit.detail.bonding.BondingOperations
 import com.atruedev.bletoolkit.detail.bonding.ConnectionRecipeType
 import com.atruedev.bletoolkit.dfu.DfuOperations
 import com.atruedev.bletoolkit.filepicker.FilePickerResult
+import com.atruedev.bletoolkit.l2cap.L2capOperations
 import com.atruedev.bletoolkit.profiles.ProfileDetector
 import com.atruedev.bletoolkit.profiles.ProfileOperations
 import com.atruedev.bletoolkit.profiles.ProfileType
@@ -48,6 +49,7 @@ class DeviceDetailViewModel(advertisement: Advertisement) : ViewModel() {
     private val dfuOps = DfuOperations(peripheral, _uiState, viewModelScope)
     private val _profileState = MutableStateFlow(ProfileUiState())
     private val profileOps = ProfileOperations(peripheral, _profileState, viewModelScope)
+    private val l2capOps = L2capOperations(peripheral, _uiState, viewModelScope)
     private var rssiJob: Job? = null
 
     init {
@@ -231,6 +233,10 @@ class DeviceDetailViewModel(advertisement: Advertisement) : ViewModel() {
     fun startBatteryNotifications() = profileOps.startBatteryNotifications()
     fun readDeviceInfo() = profileOps.readDeviceInfo()
 
+    fun openL2capChannel(psm: Int) = l2capOps.openChannel(psm)
+    fun sendL2capData(data: ByteArray) = l2capOps.send(data)
+    fun closeL2capChannel() = l2capOps.closeChannel()
+
     fun dismissError() {
         _uiState.update { it.copy(error = null) }
     }
@@ -238,6 +244,7 @@ class DeviceDetailViewModel(advertisement: Advertisement) : ViewModel() {
     fun close() {
         charOps.stopAllNotifications()
         profileOps.stopAll()
+        l2capOps.closeChannel()
         rssiJob?.cancel()
         peripheral.close()
     }

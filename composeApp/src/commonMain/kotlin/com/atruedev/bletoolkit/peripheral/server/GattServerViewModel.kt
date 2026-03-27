@@ -1,0 +1,134 @@
+package com.atruedev.bletoolkit.peripheral.server
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.atruedev.kmpble.server.GattServer
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import kotlin.uuid.ExperimentalUuidApi
+import kotlin.uuid.Uuid
+
+@OptIn(ExperimentalUuidApi::class)
+class GattServerViewModel : ViewModel() {
+
+    private val _uiState = MutableStateFlow(GattServerUiState())
+    val uiState: StateFlow<GattServerUiState> = _uiState.asStateFlow()
+
+    private var server: GattServer? = null
+
+    fun addService() {
+        _uiState.update { state ->
+            val services = state.services + ServerServiceConfig(
+                characteristics = listOf(ServerCharConfig()),
+            )
+            state.copy(services = services)
+        }
+    }
+
+    fun removeService(index: Int) {
+        _uiState.update { state ->
+            val services = state.services.toMutableList().apply { removeAt(index) }
+            state.copy(services = services)
+        }
+    }
+
+    fun updateServiceUuid(serviceIndex: Int, uuid: String) {
+        _uiState.update { state ->
+            val services = state.services.toMutableList()
+            services[serviceIndex] = services[serviceIndex].copy(uuid = uuid)
+            state.copy(services = services)
+        }
+    }
+
+    fun addCharacteristic(serviceIndex: Int) {
+        _uiState.update { state ->
+            val services = state.services.toMutableList()
+            val service = services[serviceIndex]
+            services[serviceIndex] = service.copy(
+                characteristics = service.characteristics + ServerCharConfig(),
+            )
+            state.copy(services = services)
+        }
+    }
+
+    fun updateCharUuid(serviceIndex: Int, charIndex: Int, uuid: String) {
+        updateChar(serviceIndex, charIndex) { it.copy(uuid = uuid) }
+    }
+
+    fun toggleCharProperty(serviceIndex: Int, charIndex: Int, property: CharProperty) {
+        updateChar(serviceIndex, charIndex) { char ->
+            val props = if (property in char.properties) {
+                char.properties - property
+            } else {
+                char.properties + property
+            }
+            char.copy(properties = props)
+        }
+    }
+
+    fun startServer() {
+        viewModelScope.launch {
+            try {
+                val configs = _uiState.value.services
+                val gattServer = GattServer {
+                    configs.forEach { serviceConfig ->
+                        val serviceUuid = Uuid.parse(serviceConfig.uuid)
+                        service(serviceUuid) {
+                            serviceConfig.characteristics.forEach { charConfig ->
+                                val charUuid = Uuid.parse(charConfig.uuid)
+                                characteristic(charUuid) {
+                                    properties {
+                                        if (CharProperty.READ in charConfig.properties) read = true
+                                        if (CharProperty.WRITE in charConfig.properties) write = true
+                                        if (CharProperty.NOTIFY in charConfig.properties) notify = true
+                                    }
+                                    permissions {
+                                        if (CharProperty.READ in charConfig.properties) read = true
+                                        if (CharProperty.WRITE in charConfig.properties) write = true
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                gattServer.open()
+                server = gattServer
+                _uiState.update { it.copy(state = ServerState.Running, error = null) }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _uiState.update { it.copy(state = ServerState.Error(e.message ?: "Failed to start server")) }
+            }
+        }
+    }
+
+    fun stopServer() {
+        server?.close()
+        server = null
+        _uiState.update { it.copy(state = ServerState.Stopped) }
+    }
+
+    private fun updateChar(
+        serviceIndex: Int,
+        charIndex: Int,
+        transform: (ServerCharConfig) -> ServerCharConfig,
+    ) {
+        _uiState.update { state ->
+            val services = state.services.toMutableList()
+            val service = services[serviceIndex]
+            val chars = service.characteristics.toMutableList()
+            chars[charIndex] = transform(chars[charIndex])
+            services[serviceIndex] = service.copy(characteristics = chars)
+            state.copy(services = services)
+        }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        stopServer()
+    }
+}

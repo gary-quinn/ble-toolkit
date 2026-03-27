@@ -2,6 +2,8 @@ package com.atruedev.bletoolkit.detail
 
 import com.atruedev.bletoolkit.detail.bonding.ConnectionRecipeType
 import com.atruedev.bletoolkit.dfu.DfuState
+import com.atruedev.bletoolkit.l2cap.L2capMessage
+import com.atruedev.bletoolkit.l2cap.L2capState
 import com.atruedev.bletoolkit.profiles.ProfileUiState
 import com.atruedev.kmpble.bonding.BondState
 import com.atruedev.kmpble.connection.State
@@ -110,4 +112,6 @@ data class DeviceDetailUiState(
     val selectedRecipe: ConnectionRecipeType? = null,
     val dfuState: DfuState = DfuState.Idle,
     val profileState: ProfileUiState = ProfileUiState(),
+    val l2capState: L2capState = L2capState.Closed,
+    val l2capMessages: List<L2capMessage> = emptyList(),
 )

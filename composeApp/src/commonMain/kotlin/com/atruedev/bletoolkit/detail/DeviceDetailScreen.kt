@@ -41,6 +41,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.atruedev.bletoolkit.detail.bonding.BondingSection
 import com.atruedev.bletoolkit.dfu.DfuSection
+import com.atruedev.bletoolkit.l2cap.L2capSection
 import com.atruedev.bletoolkit.profiles.ProfileSection
 import com.atruedev.kmpble.bonding.BondState
 import com.atruedev.kmpble.connection.State
@@ -164,6 +165,14 @@ fun DeviceDetailScreen(
                         onReadBattery = viewModel::readBattery,
                         onStartBatteryNotifications = viewModel::startBatteryNotifications,
                         onReadDeviceInfo = viewModel::readDeviceInfo,
+                    )
+
+                    L2capSection(
+                        l2capState = state.l2capState,
+                        messages = state.l2capMessages,
+                        onOpenChannel = viewModel::openL2capChannel,
+                        onSend = viewModel::sendL2capData,
+                        onCloseChannel = viewModel::closeL2capChannel,
                     )
 
                     ServiceList(

@@ -11,6 +11,10 @@ object ValueFormatter {
         }
     }
 
+    fun formatHex(data: ByteArray): String = data.toHexString()
+
+    fun parseHex(input: String): ByteArray? = parseHexInput(input)
+
     fun parseHexInput(input: String): ByteArray? {
         val cleaned = input.replace(" ", "").replace(":", "").replace("-", "")
         if (cleaned.length % 2 != 0) return null
