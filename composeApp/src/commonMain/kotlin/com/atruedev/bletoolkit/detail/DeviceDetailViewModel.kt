@@ -5,8 +5,6 @@ import androidx.lifecycle.viewModelScope
 import com.atruedev.kmpble.connection.ConnectionOptions
 import com.atruedev.kmpble.connection.ReconnectionStrategy
 import com.atruedev.kmpble.connection.State
-import com.atruedev.kmpble.gatt.BackpressureStrategy
-import com.atruedev.kmpble.gatt.Characteristic
 import com.atruedev.kmpble.gatt.WriteType
 import com.atruedev.kmpble.peripheral.Peripheral
 import com.atruedev.kmpble.scanner.Advertisement
@@ -21,7 +19,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlin.time.Clock
 import kotlin.time.Duration.Companion.seconds
 import kotlin.uuid.ExperimentalUuidApi
 
@@ -38,12 +35,8 @@ class DeviceDetailViewModel(advertisement: Advertisement) : ViewModel() {
     )
     val uiState: StateFlow<DeviceDetailUiState> = _uiState.asStateFlow()
 
+    private val charOps = CharacteristicOperations(peripheral, _uiState, viewModelScope)
     private var rssiJob: Job? = null
-    private val notificationJobs = mutableMapOf<String, Job>()
-
-    private companion object {
-        const val MAX_NOTIFICATION_VALUES = 50
-    }
 
     init {
         observeConnectionState()
@@ -96,7 +89,7 @@ class DeviceDetailViewModel(advertisement: Advertisement) : ViewModel() {
     fun disconnect() {
         viewModelScope.launch {
             try {
-                stopAllNotifications()
+                charOps.stopAllNotifications()
                 peripheral.disconnect()
             } catch (e: CancellationException) {
                 throw e
@@ -114,7 +107,7 @@ class DeviceDetailViewModel(advertisement: Advertisement) : ViewModel() {
     private fun onDisconnected() {
         rssiJob?.cancel()
         rssiJob = null
-        stopAllNotifications()
+        charOps.stopAllNotifications()
         _uiState.update { it.copy(rssi = null, mtu = null) }
     }
 
@@ -197,163 +190,23 @@ class DeviceDetailViewModel(advertisement: Advertisement) : ViewModel() {
         }
     }
 
-    fun toggleService(serviceIndex: Int) {
-        _uiState.update { state ->
-            val services = state.services.toMutableList()
-            val service = services[serviceIndex]
-            services[serviceIndex] = service.copy(isExpanded = !service.isExpanded)
-            state.copy(services = services)
-        }
-    }
-
-    fun toggleCharacteristic(serviceIndex: Int, charIndex: Int) {
-        _uiState.update { state ->
-            val services = state.services.toMutableList()
-            val service = services[serviceIndex]
-            val chars = service.characteristics.toMutableList()
-            val char = chars[charIndex]
-            chars[charIndex] = char.copy(isExpanded = !char.isExpanded)
-            services[serviceIndex] = service.copy(characteristics = chars)
-            state.copy(services = services)
-        }
-    }
-
-    fun readCharacteristic(serviceIndex: Int, charIndex: Int) {
-        val char = _uiState.value.services[serviceIndex].characteristics[charIndex]
-        viewModelScope.launch {
-            try {
-                val value = peripheral.read(char.characteristic)
-                updateCharacteristic(serviceIndex, charIndex) {
-                    it.copy(lastReadValue = value, error = null)
-                }
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                updateCharacteristic(serviceIndex, charIndex) {
-                    it.copy(error = "Read failed: ${e.message}")
-                }
-            }
-        }
-    }
-
-    fun showWriteDialog(serviceIndex: Int, charIndex: Int) {
-        val char = _uiState.value.services[serviceIndex].characteristics[charIndex]
-        _uiState.update { it.copy(writeDialogTarget = char) }
-    }
-
-    fun dismissWriteDialog() {
-        _uiState.update { it.copy(writeDialogTarget = null) }
-    }
-
-    fun writeCharacteristic(
-        serviceIndex: Int,
-        charIndex: Int,
-        data: ByteArray,
-        writeType: WriteType,
-    ) {
-        val char = _uiState.value.services[serviceIndex].characteristics[charIndex]
-        viewModelScope.launch {
-            try {
-                peripheral.write(char.characteristic, data, writeType)
-                updateCharacteristic(serviceIndex, charIndex) {
-                    it.copy(lastReadValue = data, error = null)
-                }
-                dismissWriteDialog()
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                updateCharacteristic(serviceIndex, charIndex) {
-                    it.copy(error = "Write failed: ${e.message}")
-                }
-            }
-        }
-    }
-
-    fun toggleNotifications(serviceIndex: Int, charIndex: Int) {
-        val char = _uiState.value.services[serviceIndex].characteristics[charIndex]
-        val key = "${serviceIndex}_${charIndex}"
-
-        if (char.isNotifying) {
-            notificationJobs[key]?.cancel()
-            notificationJobs.remove(key)
-            updateCharacteristic(serviceIndex, charIndex) {
-                it.copy(isNotifying = false)
-            }
-        } else {
-            updateCharacteristic(serviceIndex, charIndex) {
-                it.copy(isNotifying = true, notificationValues = emptyList())
-            }
-            val job = viewModelScope.launch {
-                try {
-                    peripheral.observeValues(
-                        char.characteristic,
-                        BackpressureStrategy.Buffer(capacity = 16),
-                    ).collect { value ->
-                        updateCharacteristic(serviceIndex, charIndex) { model ->
-                            val values = model.notificationValues.toMutableList()
-                            values.add(TimestampedValue(value, Clock.System.now()))
-                            if (values.size > MAX_NOTIFICATION_VALUES) {
-                                values.removeAt(0)
-                            }
-                            model.copy(
-                                notificationValues = values,
-                                lastReadValue = value,
-                                error = null,
-                            )
-                        }
-                    }
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    updateCharacteristic(serviceIndex, charIndex) {
-                        it.copy(isNotifying = false, error = "Notification failed: ${e.message}")
-                    }
-                }
-            }
-            notificationJobs[key] = job
-        }
-    }
-
-    fun setDisplayFormat(serviceIndex: Int, charIndex: Int, format: DisplayFormat) {
-        updateCharacteristic(serviceIndex, charIndex) {
-            it.copy(displayFormat = format)
-        }
-    }
-
-    fun dismissCharacteristicError(serviceIndex: Int, charIndex: Int) {
-        updateCharacteristic(serviceIndex, charIndex) {
-            it.copy(error = null)
-        }
-    }
-
-    private fun updateCharacteristic(
-        serviceIndex: Int,
-        charIndex: Int,
-        transform: (CharacteristicUiModel) -> CharacteristicUiModel,
-    ) {
-        _uiState.update { state ->
-            val services = state.services.toMutableList()
-            if (serviceIndex >= services.size) return@update state
-            val service = services[serviceIndex]
-            val chars = service.characteristics.toMutableList()
-            if (charIndex >= chars.size) return@update state
-            chars[charIndex] = transform(chars[charIndex])
-            services[serviceIndex] = service.copy(characteristics = chars)
-            state.copy(services = services)
-        }
-    }
-
-    private fun stopAllNotifications() {
-        notificationJobs.values.forEach { it.cancel() }
-        notificationJobs.clear()
-    }
+    fun toggleService(serviceIndex: Int) = charOps.toggleService(serviceIndex)
+    fun toggleCharacteristic(si: Int, ci: Int) = charOps.toggleCharacteristic(si, ci)
+    fun readCharacteristic(si: Int, ci: Int) = charOps.readCharacteristic(si, ci)
+    fun showWriteDialog(si: Int, ci: Int) = charOps.showWriteDialog(si, ci)
+    fun dismissWriteDialog() = charOps.dismissWriteDialog()
+    fun writeCharacteristic(si: Int, ci: Int, data: ByteArray, writeType: WriteType) =
+        charOps.writeCharacteristic(si, ci, data, writeType)
+    fun toggleNotifications(si: Int, ci: Int) = charOps.toggleNotifications(si, ci)
+    fun setDisplayFormat(si: Int, ci: Int, format: DisplayFormat) = charOps.setDisplayFormat(si, ci, format)
+    fun dismissCharacteristicError(si: Int, ci: Int) = charOps.dismissCharacteristicError(si, ci)
 
     fun dismissError() {
         _uiState.update { it.copy(error = null) }
     }
 
     fun close() {
-        stopAllNotifications()
+        charOps.stopAllNotifications()
         rssiJob?.cancel()
         peripheral.close()
     }
