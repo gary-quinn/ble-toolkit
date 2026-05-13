@@ -10,7 +10,7 @@ composeMultiplatform = "1.11.0-beta03"
 material3 = "1.11.0-alpha07"
 kotlin = "2.3.20"
 kotlinx-coroutines = "1.10.2"
-kotlinx-datetime = "0.7.1"
+kotlinx-datetime = "0.8.0"
 kmpBle = "v0.3.12"
 
 [libraries]
